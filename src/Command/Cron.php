@@ -15,6 +15,14 @@ use Zls\Command\Utils;
  */
 class Cron extends \Zls\Command\Command
 {
+    private $debug = false;
+
+    public function __construct()
+    {
+        parent::__construct();
+        z::includeOnce(__DIR__ . '/../CronFunction.php');
+    }
+
     /**
      * 命令配置.
      * @return array
@@ -27,7 +35,7 @@ class Cron extends \Zls\Command\Command
     public function commands()
     {
         return [
-            ' run'  => 'Start the corn server',
+            ' start' => 'Start the corn server',
             ' init' => ['Publish Corn configuration', ['--force, -F' => ' Overwrite old config file']],
         ];
     }
@@ -47,13 +55,14 @@ class Cron extends \Zls\Command\Command
      */
     public function execute($args)
     {
-        $active     = z::arrayGet($args, 2);
+        $active = z::arrayGet($args, 2);
+        $this->debug = z::arrayGet($args, ['debug', '-debug','D'], false);
         $hasConfing = Z::config()->find('cron');
         if (method_exists($this, $active)) {
             $this->$active($args);
         } elseif ($hasConfing) {
             $config = Z::config('cron');
-            $lists  = Z::arrayGet($config, 'lists');
+            $lists = Z::arrayGet($config, 'lists');
             if ($config['enable'] && $lists) {
                 foreach ($lists as $list) {
                     $this->start($list);
@@ -64,17 +73,10 @@ class Cron extends \Zls\Command\Command
         }
     }
 
-
-    public function __construct()
-    {
-        parent::__construct();
-        z::includeOnce(__DIR__ . '/../CronFunction.php');
-    }
-
     public function init($args)
     {
-        $force      = Z::arrayGet($args, ['-force', 'F']);
-        $file       = ZLS_APP_PATH . 'config/default/cron.php';
+        $force = Z::arrayGet($args, ['-force', 'F']);
+        $file = ZLS_APP_PATH . 'config/default/cron.php';
         $originFile = Z::realPath(__DIR__ . '/../Config/cron.php', false, false);
         $this->copyFile(
             $originFile,
@@ -92,6 +94,14 @@ class Cron extends \Zls\Command\Command
         );
     }
 
+    public function log($msg, $time = true)
+    {
+        if ($this->debug) {
+            $nowTime = '' . Z::microtime();
+            echo ($time ? date('[Y-m-d H:i:s.' . substr($nowTime, strlen($nowTime) - 3) . '] ') : '') . $msg . "\n";
+        }
+    }
+
     /**
      * 执行任务
      * @param array $data
@@ -100,26 +110,34 @@ class Cron extends \Zls\Command\Command
     public function start($data = [])
     {
         $data = array_merge([
-            'task'    => '',
-            'enable'  => true,
-            'args'    => '',
-            'cron'    => '*/1 * * * *',
+            'task' => '',
+            'enable' => true,
+            'args' => '',
+            'cron' => '*/1 * * * *',
             'logPath' => '',
             'logSize' => 1024 * 1024,
         ], $data);
         if ($data['enable']) {
+            $this->log("Run Task: {$data['task']}");
             try {
-                $task    = Z::arrayGet($data, 'task');
-                $cron    = CronExpression::factory(Z::arrayGet($data, 'cron'));
-                $logPath = z::realPath($data['logPath'], false, false);
-                $this->resize($logPath, $data['logSize']);
+                $task = Z::arrayGet($data, 'task');
+                $cron = CronExpression::factory(Z::arrayGet($data, 'cron'));
+                $logPath = $data['logPath'] ? z::realPath($data['logPath'], false, false) : null;
+                if ($logPath) {
+                    $logPath = z::realPath($data['logPath'], false, false);
+                    $this->resize($logPath, $data['logSize']);
+                    $this->log("logPath: {$logPath}");
+                }
                 if ($cron->isDue()) {
                     // $cron->getNextRunDate()->format('Y-m-d H:i:s');
                     // $cron->getPreviousRunDate()->format('Y-m-d H:i:s')
-                    z::task($task, $data['args'], null, null, $logPath);
+                    $cmd = z::task($task, $data['args'], null, null, $logPath);
+                    $this->log($cmd);
+                } else {
+                    $this->log("Not executed at the specified time: {$data['cron']}");
                 }
             } catch (\Exception $e) {
-                return $e->getMessage();
+                $this->log("Error", $e->getMessage());
             }
         }
 
