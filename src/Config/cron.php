@@ -7,8 +7,9 @@
  * @updatetime    2019-01-11 12:39
  */
 return [
-    'enable' => true,
-    'lists'  => [
+    'enable'  => true,
+    'phpPath' => null,//留空系统自动获取
+    'lists'   => [
         //[
         //'task'    => '',
         //'enable'  => true,
