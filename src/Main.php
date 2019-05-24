@@ -5,6 +5,12 @@ namespace Zls\Cron;
 use SimpleCron\CronExpression;
 use Z;
 
+/**
+ * Class Main
+ * @package Zls\Cron
+ * @author        影浅 seekwe@gmail.com
+ * @updatetime    2019-04-26 16:51
+ */
 class Main
 {
     private $instanceObj;
