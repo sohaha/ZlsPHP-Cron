@@ -122,7 +122,7 @@ class Cron extends \Zls\Command\Command {
 	 * @param array $data
 	 * @return bool|string
 	 */
-	public function start($data = [], $phpPath = nul) {
+	public function start($data = [], $phpPath = null) {
 		$data = array_merge([
 			'task' => '',
 			'enable' => true,
